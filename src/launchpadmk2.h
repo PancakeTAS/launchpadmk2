@@ -115,6 +115,12 @@ launchpad_status launchpad_set_leds_col(launchpad_t* launchpad, uint8_t* col_idx
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_set_leds_row(launchpad_t* launchpad, uint8_t* row_idx, uint8_t* row_col, int size);
 
+/// @brief set all leds of launchpad
+/// @param launchpad launchpad device handle
+/// @param color led color (0 to 127)
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_set_leds_all(launchpad_t* launchpad, uint8_t color);
+
 /// @brief flash leds of launchpad
 /// @param launchpad launchpad device handle
 /// @param leds_idx leds index (11 to 111)
@@ -397,6 +403,19 @@ launchpad_status launchpad_set_leds_col(launchpad_t* launchpad, uint8_t* col_idx
 
 launchpad_status launchpad_set_leds_row(launchpad_t* launchpad, uint8_t* row_idx, uint8_t* row_col, int size) {
     return launchpad_set_leds_colrow(launchpad, row_idx, row_col, size, LAUNCHPAD_SETLEDS_ROW_CTRL);
+}
+
+
+#define LAUNCHPAD_SETLEDS_ALL_CTRL 0x0E //!< sysex control byte for setting all leds
+
+launchpad_status launchpad_set_leds_all(launchpad_t* launchpad, uint8_t color) {
+    uint8_t sysex[128];
+    int len = 9;
+    ALSA_PREPARE_SYSEX(sysex, len, LAUNCHPAD_SETLEDS_ALL_CTRL)
+
+    sysex[7] = color;
+
+    return launchpad_send_sysex(launchpad, sysex, len);
 }
 
 
