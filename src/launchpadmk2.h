@@ -91,6 +91,14 @@ launchpad_status launchpad_send_clock(launchpad_t* launchpad);
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_set_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size);
 
+/// @brief set leds of launchpad in rgb mode
+/// @param launchpad launchpad device handle
+/// @param leds_idx leds index (11 to 111)
+/// @param leds_col leds color (r, g, b; 0 to 63)
+/// @param size size of leds_idx and leds_col (up to 80)
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_set_leds_rgb(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size);
+
 
 #else
 
@@ -276,7 +284,6 @@ launchpad_status launchpad_send_clock(launchpad_t* launchpad) {
 }
 
 
-
 // sysex functions
 
 
@@ -312,6 +319,24 @@ launchpad_status launchpad_set_leds(launchpad_t* launchpad, uint8_t* leds_idx, u
     for (int i = 0; i < size; i++) {
         sysex[7 + i * 2] = leds_idx[i];
         sysex[8 + i * 2] = leds_col[i];
+    }
+
+    return launchpad_send_sysex(launchpad, sysex, len);
+}
+
+
+#define LAUNCHPAD_SETLEDSRGB_CTRL 0x0B //!< sysex control byte for setting leds in rgb mode
+
+launchpad_status launchpad_set_leds_rgb(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size) {
+    uint8_t sysex[512];
+    int len = 8 + size * 4;
+    ALSA_PREPARE_SYSEX(sysex, len, LAUNCHPAD_SETLEDSRGB_CTRL)
+
+    for (int i = 0; i < size; i++) {
+        sysex[7 + i * 4] = leds_idx[i];
+        sysex[8 + i * 4] = leds_col[i * 3];
+        sysex[9 + i * 4] = leds_col[i * 3 + 1];
+        sysex[10 + i * 4] = leds_col[i * 3 + 2];
     }
 
     return launchpad_send_sysex(launchpad, sysex, len);
