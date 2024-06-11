@@ -17,6 +17,9 @@ typedef struct {
     char* port_name; //!< [in] name of the launchpad port (containing string, can be NULL)
     char* client_name; //!< [in] name of the alsa client
 
+    void (*on_noteon)(uint8_t button, bool state); //!< [in] noteon event callback (can be NULL)
+    void (*on_controller)(uint8_t button, bool state); //!< [in] controller event callback (can be NULL)
+
     snd_seq_t* seq_handle; //!< sequencer handle
     int seq_in; //!< in port
     int seq_out; //!< out port
@@ -25,6 +28,7 @@ typedef struct {
 typedef enum {
     LAUNCHPAD_STATUS_OK = 0, //!< success
     LAUNCHPAD_STATUS_ERROR = 1, //!< error
+    LAUNCHPAD_STATUS_NO_EVENTS = -1, //!< no events
 } launchpad_status; //!< launchpad status
 
 #ifndef LAUNCHPAD_IMPL
@@ -35,6 +39,11 @@ typedef enum {
 /// @param launchpad launchpad device handle
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_open(launchpad_t* launchpad);
+
+/// @brief poll launchpad for events
+/// @param launchpad launchpad device handle
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR, ::LAUNCHPAD_NO_EVENTS
+launchpad_status launchpad_poll(launchpad_t* launchpad);
 
 /// @brief close launchpad connection
 /// @param launchpad launchpad device handle
@@ -130,6 +139,29 @@ launchpad_status launchpad_open(launchpad_t* launchpad) {
     status = snd_seq_drop_input_buffer(launchpad->seq_handle);
     ALSA_ASSERT(status, "snd_seq_drop_input_buffer()", "dropped input buffer");
     log_trace("connected to launchpad ports");
+
+    return LAUNCHPAD_STATUS_OK;
+}
+
+launchpad_status launchpad_poll(launchpad_t* launchpad) {
+    snd_seq_event_t *ev;
+
+    // poll for events
+    int status = snd_seq_event_input(launchpad->seq_handle, &ev);
+    if (status < 0) {
+        if (status == -EAGAIN)
+            return LAUNCHPAD_STATUS_NO_EVENTS;
+
+        log_error("snd_seq_event_input() failed: %s", snd_strerror(status));
+        return LAUNCHPAD_STATUS_ERROR;
+    }
+    log_trace("event polled");
+
+    // handle event
+    if (ev->type == SND_SEQ_EVENT_NOTEON && launchpad->on_noteon)
+        launchpad->on_noteon(ev->data.note.note, ev->data.note.velocity == 127);
+    else if (ev->type == SND_SEQ_EVENT_CONTROLLER && launchpad->on_controller)
+        launchpad->on_controller(ev->data.control.param, ev->data.control.value == 127);
 
     return LAUNCHPAD_STATUS_OK;
 }
