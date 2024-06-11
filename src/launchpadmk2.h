@@ -45,6 +45,11 @@ typedef enum {
     LAUNCHPAD_FADER_PAN //!< pan fader
 } launchpad_fader;
 
+typedef struct {
+    uint8_t device_id; //!< device id
+    uint16_t firmware_version; //!< firmware version
+} launchpad_device_info; //!< launchpad device info
+
 #ifndef LAUNCHPAD_IMPL
 
 // device functions
@@ -174,6 +179,12 @@ launchpad_status launchpad_set_mode(launchpad_t* launchpad, launchpad_mode mode)
 /// @param size size of faders_idx and faders_type (up to 8)
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_init_faders(launchpad_t* launchpad, uint8_t* faders_idx, launchpad_fader* faders_type, uint8_t* faders_color, uint8_t* faders_value, int size);
+
+/// @brief make a device inquiry
+/// @param launchpad launchpad device handle
+/// @param info launchpad device info
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_device_inquiry(launchpad_t* launchpad, launchpad_device_info* info);
 
 #else
 
@@ -528,6 +539,35 @@ launchpad_status launchpad_init_faders(launchpad_t* launchpad, uint8_t* faders_i
     }
 
     return launchpad_send_sysex(launchpad, sysex, len);
+}
+
+
+#define LAUNCHPAD_INQUIRY_MSG (uint8_t[]) { 0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7 } //!< sysex message for device inquiry
+
+launchpad_status launchpad_device_inquiry(launchpad_t* launchpad, launchpad_device_info* info) {
+    // send inquiry message
+    launchpad_status lstatus = launchpad_send_sysex(launchpad, LAUNCHPAD_INQUIRY_MSG, 6);
+    if (lstatus != LAUNCHPAD_STATUS_OK) return lstatus;
+
+    // poll for response
+    snd_seq_event_t *ev;
+    int status;
+    do {
+        status = snd_seq_event_input(launchpad->seq_handle, &ev);
+        if (status > 0) {
+            uint8_t* data = ev->data.ext.ptr;
+            info->device_id = data[2];
+            info->firmware_version = (uint16_t) data[12] * 1000 + data[13] * 100 + data[14] * 10 + data[15];
+
+            log_trace("device inquiry polled");
+            return LAUNCHPAD_STATUS_OK;
+        }
+
+        usleep(10000); // wait 0.01s
+    } while (status >= 0 || status == -EAGAIN);
+
+    log_error("snd_seq_event_input() failed: %s", snd_strerror(status));
+    return LAUNCHPAD_STATUS_ERROR;
 }
 
 #endif
