@@ -74,6 +74,13 @@ launchpad_status launchpad_flash_led(launchpad_t* launchpad, uint8_t idx, bool i
 /// @param color led color (0 to 127)
 launchpad_status launchpad_pulse_led(launchpad_t* launchpad, uint8_t idx, bool is_controller, uint8_t color);
 
+// clock functions
+
+/// @brief send midi clock signal (24 ppm, 40 to 240 bpm)
+/// @param launchpad launchpad device handle
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_send_clock(launchpad_t* launchpad);
+
 #else
 
 #ifdef LAUNCHPAD_LOG_ERROR
@@ -244,6 +251,17 @@ launchpad_status launchpad_flash_led(launchpad_t *launchpad, uint8_t idx, bool i
 
 launchpad_status launchpad_pulse_led(launchpad_t *launchpad, uint8_t idx, bool is_controller, uint8_t color) {
     return launchpad_set_led(launchpad, LAUNCHPAD_PULSE_CH, idx, is_controller, color);
+}
+
+
+// clock functions
+
+
+launchpad_status launchpad_send_clock(launchpad_t* launchpad) {
+    ALSA_PREPARE_EVENT(launchpad);
+    ev.type = SND_SEQ_EVENT_CLOCK;
+    ALSA_SEND_EVENT(launchpad, ev);
+    return LAUNCHPAD_STATUS_OK;
 }
 
 #endif
