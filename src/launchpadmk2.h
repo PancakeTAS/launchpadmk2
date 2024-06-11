@@ -81,6 +81,17 @@ launchpad_status launchpad_pulse_led(launchpad_t* launchpad, uint8_t idx, bool i
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_send_clock(launchpad_t* launchpad);
 
+// sysex functions
+
+/// @brief set leds of launchpad
+/// @param launchpad launchpad device handle
+/// @param leds_idx leds index (11 to 111)
+/// @param leds_col leds color (0 to 127)
+/// @param size size of leds_idx and leds_col (up to 80)
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_set_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size);
+
+
 #else
 
 #ifdef LAUNCHPAD_LOG_ERROR
@@ -262,6 +273,48 @@ launchpad_status launchpad_send_clock(launchpad_t* launchpad) {
     ev.type = SND_SEQ_EVENT_CLOCK;
     ALSA_SEND_EVENT(launchpad, ev);
     return LAUNCHPAD_STATUS_OK;
+}
+
+
+
+// sysex functions
+
+
+/// @brief prepare sysex message
+/// @param sysex sysex message
+/// @param size sysex message size
+/// @param control sysex control byte
+#define ALSA_PREPARE_SYSEX(sysex, size, control) \
+    sysex[0] = 0xF0; \
+    sysex[1] = 0x00; \
+    sysex[2] = 0x20; \
+    sysex[3] = 0x29; \
+    sysex[4] = 0x02; \
+    sysex[5] = 0x18; \
+    sysex[6] = control; \
+    sysex[size - 1] = 0xF7;
+
+static launchpad_status launchpad_send_sysex(launchpad_t* launchpad, uint8_t* sysex, size_t size) {
+    ALSA_PREPARE_EVENT(launchpad);
+    snd_seq_ev_set_sysex(&ev, size, sysex);
+    ALSA_SEND_EVENT(launchpad, ev);
+    return LAUNCHPAD_STATUS_OK;
+}
+
+
+#define LAUNCHPAD_SETLEDS_CTRL 0x0A //!< sysex control byte for setting leds
+
+launchpad_status launchpad_set_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size) {
+    uint8_t sysex[128];
+    int len = 8 + size * 2;
+    ALSA_PREPARE_SYSEX(sysex, len, LAUNCHPAD_SETLEDS_CTRL)
+
+    for (int i = 0; i < size; i++) {
+        sysex[7 + i * 2] = leds_idx[i];
+        sysex[8 + i * 2] = leds_col[i];
+    }
+
+    return launchpad_send_sysex(launchpad, sysex, len);
 }
 
 #endif
