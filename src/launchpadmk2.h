@@ -186,6 +186,11 @@ launchpad_status launchpad_init_faders(launchpad_t* launchpad, uint8_t* faders_i
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_device_inquiry(launchpad_t* launchpad, launchpad_device_info* info);
 
+/// @brief set launchpad to bootloader
+/// @param launchpad launchpad device handle
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_set_bootloader(launchpad_t* launchpad);
+
 #else
 
 #ifdef LAUNCHPAD_LOG_ERROR
@@ -568,6 +573,13 @@ launchpad_status launchpad_device_inquiry(launchpad_t* launchpad, launchpad_devi
 
     log_error("snd_seq_event_input() failed: %s", snd_strerror(status));
     return LAUNCHPAD_STATUS_ERROR;
+}
+
+
+#define LAUNCHPAD_BOOTLOADER_MSG (uint8_t[]) { 0xF0, 0x00, 0x20, 0x29, 0x00, 0x71, 0x00, 0x69, 0xF7 } //!< sysex message for setting bootloader
+
+launchpad_status launchpad_set_bootloader(launchpad_t *launchpad) {
+    return launchpad_send_sysex(launchpad, LAUNCHPAD_BOOTLOADER_MSG, 9);
 }
 
 #endif
