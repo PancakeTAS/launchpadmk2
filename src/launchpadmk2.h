@@ -31,6 +31,15 @@ typedef enum {
     LAUNCHPAD_STATUS_NO_EVENTS = -1, //!< no events
 } launchpad_status; //!< launchpad status
 
+typedef enum {
+    LAUNCHPAD_MODE_SESSION, //!< session mode
+    LAUNCHPAD_MODE_USER1, //!< user1 mode
+    LAUNCHPAD_MODE_USER2, //!< user2 mode
+    LAUNCHPAD_MODE_RSV1, //!< reserved by ableton
+    LAUNCHPAD_MODE_VOLUME, //!< volume mode
+    LAUNCHPAD_MODE_PAN, //!< pan mode
+} launchpad_mode; //!< launchpad mode
+
 #ifndef LAUNCHPAD_IMPL
 
 // device functions
@@ -144,6 +153,12 @@ launchpad_status launchpad_pulse_leds(launchpad_t* launchpad, uint8_t* leds_idx,
 /// @param loop should loop
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_scroll_text(launchpad_t* launchpad, char* text, uint8_t color, bool loop);
+
+/// @brief set mode of launchpad
+/// @param launchpad launchpad device handle
+/// @param mode mode to set
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_set_mode(launchpad_t* launchpad, launchpad_mode mode);
 
 #else
 
@@ -468,6 +483,18 @@ launchpad_status launchpad_scroll_text(launchpad_t* launchpad, char* text, uint8
     }
 
     return launchpad_send_sysex(launchpad, sysex, len);
+}
+
+
+#define LAUNCHPAD_MODE_CTRL 0x22 //!< sysex control byte for setting mode
+
+launchpad_status launchpad_set_mode(launchpad_t* launchpad, launchpad_mode mode) {
+    uint8_t sysex[9];
+    ALSA_PREPARE_SYSEX(sysex, 9, LAUNCHPAD_MODE_CTRL)
+
+    sysex[7] = mode;
+
+    return launchpad_send_sysex(launchpad, sysex, 9);
 }
 
 #endif
