@@ -137,6 +137,13 @@ launchpad_status launchpad_flash_leds(launchpad_t* launchpad, uint8_t* leds_idx,
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_pulse_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size);
 
+/// @brief scroll text on launchpad
+/// @param launchpad launchpad device handle
+/// @param text ascii text to scroll (use plain 1-7 to control speed, default is 4)
+/// @param color color to scroll (0 to 127)
+/// @param loop should loop
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_scroll_text(launchpad_t* launchpad, char* text, uint8_t color, bool loop);
 
 #else
 
@@ -442,6 +449,25 @@ launchpad_status launchpad_flash_leds(launchpad_t* launchpad, uint8_t* leds_idx,
 
 launchpad_status launchpad_pulse_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size) {
     return launchpad_flashpulse_leds(launchpad, leds_idx, leds_col, size, LAUNCHPAD_PULSE_CTRL);
+}
+
+
+#define LAUNCHPAD_SCROLL_CTRL 0x14 //!< sysex control byte for scrolling text
+
+launchpad_status launchpad_scroll_text(launchpad_t* launchpad, char* text, uint8_t color, bool loop) {
+    uint8_t sysex[512];
+    int text_len = strlen(text);
+    int len = 10 + text_len;
+    ALSA_PREPARE_SYSEX(sysex, len, LAUNCHPAD_SCROLL_CTRL)
+
+    sysex[7] = color;
+    sysex[8] = loop ? 1 : 0;
+
+    for (int i = 0; i < text_len; i++) {
+        sysex[9 + i] = text[i];
+    }
+
+    return launchpad_send_sysex(launchpad, sysex, len);
 }
 
 #endif
