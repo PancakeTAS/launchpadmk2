@@ -99,6 +99,21 @@ launchpad_status launchpad_set_leds(launchpad_t* launchpad, uint8_t* leds_idx, u
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_set_leds_rgb(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size);
 
+/// @brief set leds of launchpad by column
+/// @param launchpad launchpad device handle
+/// @param col_idx column index (0 to 8)
+/// @param col_col column color (0 to 127)
+/// @param size size of col_idx and col_col (up to 9)
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_set_leds_col(launchpad_t* launchpad, uint8_t* col_idx, uint8_t* col_col, int size);
+
+/// @brief set leds of launchpad by row
+/// @param launchpad launchpad device handle
+/// @param row_idx row index (0 to 8)
+/// @param row_col row color (0 to 127)
+/// @param size size of row_idx and row_col (up to 9)
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_set_leds_row(launchpad_t* launchpad, uint8_t* row_idx, uint8_t* row_col, int size);
 
 #else
 
@@ -340,6 +355,31 @@ launchpad_status launchpad_set_leds_rgb(launchpad_t* launchpad, uint8_t* leds_id
     }
 
     return launchpad_send_sysex(launchpad, sysex, len);
+}
+
+
+#define LAUNCHPAD_SETLEDS_COL_CTRL 0x0C //!< sysex control byte for setting leds by column
+#define LAUNCHPAD_SETLEDS_ROW_CTRL 0x0D //!< sysex control byte for setting leds by row
+
+static launchpad_status launchpad_set_leds_colrow(launchpad_t* launchpad, uint8_t* col_idx, uint8_t* col_col, int size, uint8_t control) {
+    uint8_t sysex[128];
+    int len = 8 + size * 2;
+    ALSA_PREPARE_SYSEX(sysex, len, control)
+
+    for (int i = 0; i < size; i++) {
+        sysex[7 + i * 2] = col_idx[i];
+        sysex[8 + i * 2] = col_col[i];
+    }
+
+    return launchpad_send_sysex(launchpad, sysex, len);
+}
+
+launchpad_status launchpad_set_leds_col(launchpad_t* launchpad, uint8_t* col_idx, uint8_t* col_col, int size) {
+    return launchpad_set_leds_colrow(launchpad, col_idx, col_col, size, LAUNCHPAD_SETLEDS_COL_CTRL);
+}
+
+launchpad_status launchpad_set_leds_row(launchpad_t* launchpad, uint8_t* row_idx, uint8_t* row_col, int size) {
+    return launchpad_set_leds_colrow(launchpad, row_idx, row_col, size, LAUNCHPAD_SETLEDS_ROW_CTRL);
 }
 
 #endif
