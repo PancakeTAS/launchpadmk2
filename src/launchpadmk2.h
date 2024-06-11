@@ -115,6 +115,23 @@ launchpad_status launchpad_set_leds_col(launchpad_t* launchpad, uint8_t* col_idx
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_set_leds_row(launchpad_t* launchpad, uint8_t* row_idx, uint8_t* row_col, int size);
 
+/// @brief flash leds of launchpad
+/// @param launchpad launchpad device handle
+/// @param leds_idx leds index (11 to 111)
+/// @param leds_col leds color (0 to 127)
+/// @param size size of leds_idx and leds_col (up to 80)
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_flash_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size);
+
+/// @brief pulse leds of launchpad
+/// @param launchpad launchpad device handle
+/// @param leds_idx leds index (11 to 111)
+/// @param leds_col leds color (0 to 127)
+/// @param size size of leds_idx and leds_col (up to 80)
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_pulse_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size);
+
+
 #else
 
 #ifdef LAUNCHPAD_LOG_ERROR
@@ -380,6 +397,32 @@ launchpad_status launchpad_set_leds_col(launchpad_t* launchpad, uint8_t* col_idx
 
 launchpad_status launchpad_set_leds_row(launchpad_t* launchpad, uint8_t* row_idx, uint8_t* row_col, int size) {
     return launchpad_set_leds_colrow(launchpad, row_idx, row_col, size, LAUNCHPAD_SETLEDS_ROW_CTRL);
+}
+
+
+#define LAUNCHPAD_FLASH_CTRL 0x23 //!< sysex control byte for flashing leds
+#define LAUNCHPAD_PULSE_CTRL 0x28 //!< sysex control byte for pulsing leds
+
+static launchpad_status launchpad_flashpulse_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size, uint8_t control) {
+    uint8_t sysex[128];
+    int len = 8 + size * 3;
+    ALSA_PREPARE_SYSEX(sysex, len, control)
+
+    for (int i = 0; i < size; i++) {
+        sysex[7 + i * 3] = 0;
+        sysex[8 + i * 3] = leds_idx[i];
+        sysex[9 + i * 3] = leds_col[i];
+    }
+
+    return launchpad_send_sysex(launchpad, sysex, len);
+}
+
+launchpad_status launchpad_flash_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size) {
+    return launchpad_flashpulse_leds(launchpad, leds_idx, leds_col, size, LAUNCHPAD_FLASH_CTRL);
+}
+
+launchpad_status launchpad_pulse_leds(launchpad_t* launchpad, uint8_t* leds_idx, uint8_t* leds_col, int size) {
+    return launchpad_flashpulse_leds(launchpad, leds_idx, leds_col, size, LAUNCHPAD_PULSE_CTRL);
 }
 
 #endif
