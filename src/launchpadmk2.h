@@ -50,6 +50,30 @@ launchpad_status launchpad_poll(launchpad_t* launchpad);
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_close(launchpad_t* launchpad);
 
+// main functions
+
+/// @brief set led of launchpad
+/// @param launchpad launchpad device handle
+/// @param channel led channel to send to
+/// @param idx led index (11 to 111)
+/// @param is_controller is controller led (top row)
+/// @param color led color (0 to 127)
+launchpad_status launchpad_set_led(launchpad_t* launchpad, uint8_t channel, uint8_t idx, bool is_controller, uint8_t color);
+
+/// @brief flash led of launchpad
+/// @param launchpad launchpad device handle
+/// @param idx led index (11 to 111)
+/// @param is_controller is controller led (top row)
+/// @param color led color (0 to 127)
+launchpad_status launchpad_flash_led(launchpad_t* launchpad, uint8_t idx, bool is_controller, uint8_t color);
+
+/// @brief pulase led of launchpad
+/// @param launchpad launchpad device handle
+/// @param idx led index (11 to 111)
+/// @param is_controller is controller led (top row)
+/// @param color led color (0 to 127)
+launchpad_status launchpad_pulse_led(launchpad_t* launchpad, uint8_t idx, bool is_controller, uint8_t color);
+
 #else
 
 #ifdef LAUNCHPAD_LOG_ERROR
@@ -176,6 +200,50 @@ launchpad_status launchpad_close(launchpad_t* launchpad) {
     ALSA_ASSERT(status, "snd_seq_close()", "sequencer closed");
     log_trace("launchpad device closed");
     return LAUNCHPAD_STATUS_OK;
+}
+
+
+// main functions
+
+
+/// @brief prepare alsa event
+/// @param launchpad launchpad device handle
+#define ALSA_PREPARE_EVENT(launchpad) \
+    snd_seq_event_t ev; \
+    snd_seq_ev_clear(&ev); \
+    snd_seq_ev_set_source(&ev, launchpad->seq_out); \
+    snd_seq_ev_set_subs(&ev); \
+    snd_seq_ev_set_direct(&ev);
+
+/// @brief send alsa event
+/// @param launchpad launchpad device handle
+#define ALSA_SEND_EVENT(launchpad, ev) \
+    int status = snd_seq_event_output(launchpad->seq_handle, &ev); \
+    ALSA_ASSERT(status, "snd_seq_event_output()", "event sent"); \
+    status = snd_seq_drain_output(launchpad->seq_handle); \
+    ALSA_ASSERT(status, "snd_seq_drain_output()", "event flushed");
+
+
+launchpad_status launchpad_set_led(launchpad_t *launchpad, uint8_t channel, uint8_t idx, bool is_controller, uint8_t color) {
+    ALSA_PREPARE_EVENT(launchpad);
+    if (is_controller) snd_seq_ev_set_controller(&ev, channel, idx, color);
+    else snd_seq_ev_set_noteon(&ev, channel, idx, color);
+    ALSA_SEND_EVENT(launchpad, ev);
+    return LAUNCHPAD_STATUS_OK;
+}
+
+
+#define LAUNCHPAD_FLASH_CH 1 //!< channel for flashing leds
+
+launchpad_status launchpad_flash_led(launchpad_t *launchpad, uint8_t idx, bool is_controller, uint8_t color) {
+    return launchpad_set_led(launchpad, LAUNCHPAD_FLASH_CH, idx, is_controller, color);
+}
+
+
+#define LAUNCHPAD_PULSE_CH 2 //!< channel for pulsing leds
+
+launchpad_status launchpad_pulse_led(launchpad_t *launchpad, uint8_t idx, bool is_controller, uint8_t color) {
+    return launchpad_set_led(launchpad, LAUNCHPAD_PULSE_CH, idx, is_controller, color);
 }
 
 #endif
