@@ -40,6 +40,11 @@ typedef enum {
     LAUNCHPAD_MODE_PAN, //!< pan mode
 } launchpad_mode; //!< launchpad mode
 
+typedef enum {
+    LAUNCHPAD_FADER_VOLUME, //!< volume fader
+    LAUNCHPAD_FADER_PAN //!< pan fader
+} launchpad_fader;
+
 #ifndef LAUNCHPAD_IMPL
 
 // device functions
@@ -159,6 +164,16 @@ launchpad_status launchpad_scroll_text(launchpad_t* launchpad, char* text, uint8
 /// @param mode mode to set
 /// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
 launchpad_status launchpad_set_mode(launchpad_t* launchpad, launchpad_mode mode);
+
+/// @brief initialize fader of launchpad
+/// @param launchpad launchpad device handle
+/// @param faders_idx fader indicies (0 to 7)
+/// @param faders_type fader types (volume or pan)
+/// @param faders_color fader colors (0 to 127)
+/// @param faders_value fader values (0 to 127)
+/// @param size size of faders_idx and faders_type (up to 8)
+/// @return ::LAUNCHPAD_SUCCESS, ::LAUNCHPAD_ERROR
+launchpad_status launchpad_init_faders(launchpad_t* launchpad, uint8_t* faders_idx, launchpad_fader* faders_type, uint8_t* faders_color, uint8_t* faders_value, int size);
 
 #else
 
@@ -495,6 +510,24 @@ launchpad_status launchpad_set_mode(launchpad_t* launchpad, launchpad_mode mode)
     sysex[7] = mode;
 
     return launchpad_send_sysex(launchpad, sysex, 9);
+}
+
+
+#define LAUNCHPAD_FADER_CTRL 0x2B //!< sysex control byte for initializing faders
+
+launchpad_status launchpad_init_faders(launchpad_t* launchpad, uint8_t* faders_idx, launchpad_fader* faders_type, uint8_t* faders_color, uint8_t* faders_value, int size) {
+    uint8_t sysex[128];
+    int len = 8 + size * 4;
+    ALSA_PREPARE_SYSEX(sysex, len, LAUNCHPAD_FADER_CTRL)
+
+    for (int i = 0; i < size; i++) {
+        sysex[7 + i * 4] = faders_idx[i];
+        sysex[8 + i * 4] = faders_type[i];
+        sysex[9 + i * 4] = faders_color[i];
+        sysex[10 + i * 4] = faders_value[i];
+    }
+
+    return launchpad_send_sysex(launchpad, sysex, len);
 }
 
 #endif
